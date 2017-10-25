@@ -8,7 +8,8 @@ int yydebug=1;
  
 void yyerror(const char *str)
 {
-    fprintf(stderr,"error: %s\n",str);
+    fprintf(stderr, "%s around line no %d\n",
+            err,  yylloc.first_line  );
 }
  
 int yywrap()

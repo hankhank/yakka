@@ -1,6 +1,7 @@
 %{
 #include <stdio.h>
 #include <y.tab.h>
+#define YY_USER_INIT yylloc.first_line=1;
 %}
 
 realnumber [e0-9.-]+
