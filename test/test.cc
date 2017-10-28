@@ -1,4 +1,10 @@
 
+#include <vector>
+#include <string>
+#include <unordered_map>
+
+#include "yakka_tree.h"
+
 const char* test_tree =
 "booster[0]:\n"
 "0:[f2<22485] yes=1,no=2,missing=1\n"
@@ -31,17 +37,15 @@ const char* test_tree =
 
 int main(void)
 {
-    double fake_signals[7];
+    double fake_signals[] = {0,1,2,3,4,5,6,7};
     std::unordered_map<std::string, double*> sigmap;
-    sigmap["f0"] = &fake_siginals[0];
-    sigmap["f1"] = &fake_siginals[1];
-    sigmap["f2"] = &fake_siginals[2];
-    sigmap["f3"] = &fake_siginals[3];
-    sigmap["f4"] = &fake_siginals[4];
-    sigmap["f23"] = &fake_siginals[5];
+    sigmap["f0"] = &fake_signals[0];
+    sigmap["f1"] = &fake_signals[1];
+    sigmap["f2"] = &fake_signals[2];
+    sigmap["f3"] = &fake_signals[3];
+    sigmap["f4"] = &fake_signals[4];
+    sigmap["f23"] = &fake_signals[5];
 
-    double prediction;
-
-    auto module = JitTree(test_tree, sigmap, &prediction);
+    auto module = yakka::JitTree(test_tree, sigmap);
     return 0;
 }

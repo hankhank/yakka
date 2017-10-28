@@ -53,6 +53,6 @@ struct XGBooster
 using XGBoosters = std::vector<XGBooster>;
 
 std::unique_ptr<llvm::Module> JitTree(const std::string& treeStr,
-        const std::unordered_map<std::string, double*> lookup, double* predPtr);
+        const std::unordered_map<std::string, double*> lookup);
 
 };

@@ -20,5 +20,6 @@ yes=                       { return YES; }
 ,no=                       { return NO; }
 ,missing=                  { return MISS; }
 leaf=                      { return LEAF; }
-[ \t:,\n]+                  /*     ignore  whitespace       */;
+\n                         { return LF; }
+[ \t:,]+                  /*     ignore  whitespace       */;
 %%

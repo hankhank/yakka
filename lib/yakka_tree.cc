@@ -1,4 +1,6 @@
 
+#include <iostream>
+
 #include "yakka_tree.h"
 #include "yakka_lexer.hh"
 #include "yakka_parser.hh"
@@ -23,7 +25,7 @@
 namespace yakka {
 
 llvm::BasicBlock* BuildTree(llvm::LLVMContext* llvmContext, const std::vector<XGTreeNode>& tree, 
-        int id, llvm::Value* pred, llvm::Function* func, const std::unordered_map<std::string, double*> lookup)
+        int id, llvm::Function* func, const std::unordered_map<std::string, double*> lookup)
 {
     auto& node = tree[id];
 
@@ -33,8 +35,7 @@ llvm::BasicBlock* BuildTree(llvm::LLVMContext* llvmContext, const std::vector<XG
 
     if((node.yesJump == -1) && (node.noJump == -1))
     {
-        pred = blockBuilder.CreateLoad(pred);
-        blockBuilder.CreateStore(blockBuilder.CreateFAdd(pred, condOrLeaf), pred);
+        blockBuilder.CreateRet(condOrLeaf);
     }
     else
     {
@@ -44,18 +45,19 @@ llvm::BasicBlock* BuildTree(llvm::LLVMContext* llvmContext, const std::vector<XG
             assert(false && "Feature not in lookup");
             return nullptr;
         }
-        auto* intptr = llvm::ConstantInt::get(llvm::Type::Int64Ty, *fptr);
-        auto* constPtr = llvm::ConstantExpr::getIntToPtr(intptr, llvm::PointerType::getUnqual(llvm::Type::Int64Ty)); 
+        auto* ptrAsInt = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*llvmContext), (uintptr_t)fptr->second);
+        auto* constPtr = llvm::ConstantExpr::getIntToPtr(ptrAsInt, llvm::Type::getDoublePtrTy(*llvmContext));
         auto* featureVal = blockBuilder.CreateLoad(constPtr);
-        auto* goLeft = blockBuilder.CreateFCmpOLT(node.condOrLeafVal, featureVal);
-        blockBuilder.CreateCondBr(goLeft, BuildTree(llvmContext, tree, node.yesJump, pred, func, lookup), 
-            BuildTree(llvmContext, tree, node.noJump, pred, func, lookup));
+        auto* goLeft = blockBuilder.CreateFCmpOLT(blockBuilder.CreateSIToFP(featureVal,blockBuilder.getDoubleTy()),
+            blockBuilder.CreateSIToFP(condOrLeaf,blockBuilder.getDoubleTy()));
+        blockBuilder.CreateCondBr(goLeft, BuildTree(llvmContext, tree, node.yesJump, func, lookup), 
+            BuildTree(llvmContext, tree, node.noJump, func, lookup));
     }
     return block;
 }
    
 std::unique_ptr<llvm::Module> JitTree(const std::string& treeStr,
-        const std::unordered_map<std::string, double*> lookup, double* predPtr)
+        const std::unordered_map<std::string, double*> lookup)
 {
     yakka::XGBoosters boosters;
     YY_BUFFER_STATE buf;
@@ -71,26 +73,39 @@ std::unique_ptr<llvm::Module> JitTree(const std::string& treeStr,
     llvm::Module *M = module.get();
 
     // Create valuation function
-    std::vector<llvm::Type*> inoutargs;
+    std::vector<llvm::Type*> noargs;
 
     auto* predictFunc =
     llvm::cast<llvm::Function>(M->getOrInsertFunction("predict",
                     llvm::FunctionType::get(
-                        llvm::Type::getDoubleTy(*llvmContext), // void return
-                        inoutargs,
+                        llvm::Type::getDoubleTy(*llvmContext), // return double
+                        noargs,
                         false))); // no var args
 
     auto *entry = llvm::BasicBlock::Create(*llvmContext, "predict-entry", predictFunc);
     llvm::IRBuilder<> predictBuilder(entry);
 
-    auto* intptr = llvm::ConstantInt::get(llvm::Type::Int64Ty, predPtr);
-    auto* pred = llvm::ConstantExpr::getIntToPtr(intptr, llvm::PointerType::getUnqual(llvm::Type::Int64Ty)); 
+    llvm::Value* pred = llvm::ConstantFP::get(llvm::Type::getDoubleTy(*llvmContext), 0);
+    int i = 0;
     for(auto& booster : boosters)
     {
-        BuildTree(llvmContext, booster.tree, 0, pred, predictFunc, lookup);
+        auto* bfunc = 
+        llvm::cast<llvm::Function>(M->getOrInsertFunction(std::string("booster_") + std::to_string(i),
+                        llvm::FunctionType::get(
+                            llvm::Type::getDoubleTy(*llvmContext), // return double
+                            noargs,
+                            false))); // no var args
+        BuildTree(llvmContext, booster.tree, 0, bfunc, lookup);
+        pred = predictBuilder.CreateFAdd(pred, predictBuilder.CreateCall(bfunc));
+        ++i;
+
+        std::string out;
+        llvm::raw_string_ostream rawout(out);
+        rawout << *bfunc;
+        std::cout << out;
     }
 
-    predictBuilder.CreateRetVoid();
+    predictBuilder.CreateRet(pred);
 
     // Output asm
     std::string out;
@@ -98,8 +113,11 @@ std::unique_ptr<llvm::Module> JitTree(const std::string& treeStr,
     if(llvm::verifyModule(*M, &rawout))
     {
         rawout << *predictFunc;
+        std::cout << out;
         throw std::runtime_error("Failed to verify module");
     }
+        rawout << *predictFunc;
+        std::cout << out;
     return module;
 }
 
