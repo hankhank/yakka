@@ -1,15 +1,16 @@
 
-
 %{
 #include <stdio.h>
 #include <string.h>
+#include "yakka_lexer.hh"
+#include "yakka_tree.h"
 
-int yydebug=1; 
+//int yydebug=1; 
  
-void yyerror(const char *str)
+void yyerror(yakka::XGBoosters &boosters, const char *str)
 {
-    fprintf(stderr, "%s around line no %d\n",
-            err,  yylloc.first_line  );
+    fprintf(stderr, "%s around line no \n",
+            str);
 }
  
 int yywrap()
@@ -17,12 +18,10 @@ int yywrap()
     return 1;
 } 
   
-main()
-{
-        yyparse();
-} 
-
 %}
+
+%code requires {#include "yakka_tree.h"}
+%parse-param {yakka::XGBoosters &boosters} 
 
 %union 
 {
@@ -52,7 +51,7 @@ treenodes: leaf leaf
 
 booster_id: BOOSTER OPEN ID CLOSE
        {
-       printf("booster %d\n", $3);
+           boosters.push_back(yakka::XGBooster());
        };
 
 treenode:
@@ -63,17 +62,25 @@ treenode:
 
 treenode_flt: ID OPEN SIGNALNAME CMP FLOAT CLOSE YES ID NO ID MISS ID
         {
-            printf("TREENODE %d %s %f %d %d %d\n", $1, $3, $5, $8, $10, $12);
+            assert(boosters.size());
+            boosters.back().AddTreeNode($1, $3, $5, $8, $10, $12); 
         };
 
 treenode_int: ID OPEN SIGNALNAME CMP ID CLOSE YES ID NO ID MISS ID
         {
-            printf("TREENODE %d %s %f %d %d %d\n", $1, $3, $5, $8, $10, $12);
+            assert(boosters.size());
         };
 
 leaf: ID LEAF FLOAT
         {
-            printf("LEAF %d %f\n", $1, $3);
+            assert(boosters.size());
+            boosters.back().AddLeaf($1, $3);
+        }
+
+leaf: ID LEAF ID
+        {
+            assert(boosters.size());
+            boosters.back().AddLeaf($1, $3);
         }
         ;
 %%

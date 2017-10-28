@@ -3,6 +3,11 @@
 #include <vector>
 #include <cassert>
 #include <string>
+#include <memory>
+#include <unordered_map>
+
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Module.h"
 
 namespace yakka {
 
@@ -46,5 +51,8 @@ struct XGBooster
 };
 
 using XGBoosters = std::vector<XGBooster>;
+
+std::unique_ptr<llvm::Module> JitTree(const std::string& treeStr,
+        const std::unordered_map<std::string, double*> lookup, double* predPtr);
 
 };

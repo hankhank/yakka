@@ -1,7 +1,4 @@
 
-#include "yakka_lexer.hh"
-#include "yakka_parser.hh"
-
 const char* test_tree =
 "booster[0]:\n"
 "0:[f2<22485] yes=1,no=2,missing=1\n"
@@ -34,10 +31,17 @@ const char* test_tree =
 
 int main(void)
 {
-    YY_BUFFER_STATE buf;
-    buf = yy_scan_string(test_tree);
-    yyparse(nullptr);
-    yy_delete_buffer(buf);
-    yylex_destroy();
+    double fake_signals[7];
+    std::unordered_map<std::string, double*> sigmap;
+    sigmap["f0"] = &fake_siginals[0];
+    sigmap["f1"] = &fake_siginals[1];
+    sigmap["f2"] = &fake_siginals[2];
+    sigmap["f3"] = &fake_siginals[3];
+    sigmap["f4"] = &fake_siginals[4];
+    sigmap["f23"] = &fake_siginals[5];
+
+    double prediction;
+
+    auto module = JitTree(test_tree, sigmap, &prediction);
     return 0;
 }
