@@ -121,4 +121,30 @@ std::unique_ptr<llvm::Module> JitTree(const std::string& treeStr,
     return module;
 }
 
+YakkaFunc BuildYakkaTree(const std::string& treeStr, 
+        const std::unordered_map<std::string, double*> lookup)
+{
+    auto module = JitTree(treeStr, lookup);
+
+    LLVMInitializeNativeTarget();
+    LLVMInitializeNativeAsmPrinter();
+
+    std::string error;
+    auto* llvmExecEngine = llvm::EngineBuilder(std::move(module))
+                                .setEngineKind(llvm::EngineKind::JIT)
+                                .setOptLevel(llvm::CodeGenOpt::Level::Aggressive)
+                                .setErrorStr(&error)
+                                .create();
+    llvmExecEngine->DisableGVCompilation(true);
+    if(!llvmExecEngine)
+    {
+        // throw here
+        std::cout << error;
+        assert(llvmExecEngine);
+    }
+
+    auto ret = reinterpret_cast<YakkaFunc>(llvmExecEngine->getPointerToNamedFunction("predict"));
+    llvmExecEngine->finalizeObject();
+    return ret;
+}
 };

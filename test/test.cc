@@ -2,6 +2,7 @@
 #include <vector>
 #include <string>
 #include <unordered_map>
+#include <iostream>
 
 #include "yakka_tree.h"
 
@@ -47,5 +48,8 @@ int main(void)
     sigmap["f23"] = &fake_signals[5];
 
     auto module = yakka::JitTree(test_tree, sigmap);
+
+    auto func = yakka::BuildYakkaTree(test_tree,sigmap);
+    std::cout << "test output - " << func();
     return 0;
 }

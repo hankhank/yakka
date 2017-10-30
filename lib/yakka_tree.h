@@ -55,4 +55,8 @@ using XGBoosters = std::vector<XGBooster>;
 std::unique_ptr<llvm::Module> JitTree(const std::string& treeStr,
         const std::unordered_map<std::string, double*> lookup);
 
+typedef double (*YakkaFunc)();
+
+YakkaFunc BuildYakkaTree(const std::string& treeStr, const std::unordered_map<std::string, double*> lookup);
+
 };
