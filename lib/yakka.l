@@ -4,7 +4,7 @@
 %}
 
 realnumber [e0-9.-]+
-signalid [a-zA-Z0-9]*
+signalid [a-zA-Z0-9_]*
 integer [0-9]+
 
 %%

@@ -43,7 +43,8 @@ boosters: booster
 
 booster: booster_id treenodes;
 
-treenodes: leaf leaf
+treenodes: leaf
+        | leaf leaf
         | treenode
         | treenodes leaf
         | treenodes treenode
