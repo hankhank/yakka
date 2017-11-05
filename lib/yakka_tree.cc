@@ -21,6 +21,7 @@
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
+#include "llvm/Transforms/IPO.h"
 
 namespace yakka {
 
@@ -107,6 +108,39 @@ std::unique_ptr<llvm::Module> JitTree(const std::string& treeStr,
 
     predictBuilder.CreateRet(pred);
 
+    // Optimisation passes
+    llvm::legacy::PassManager *PM2 = new llvm::legacy::PassManager();
+    llvm::legacy::FunctionPassManager *FM = new llvm::legacy::FunctionPassManager(module.get());
+
+    llvm::PassManagerBuilder PMB;
+    PMB.OptLevel = 3;
+    PMB.DisableUnitAtATime = false;
+    PMB.DisableUnrollLoops = false;
+    PMB.BBVectorize = true;;
+    PMB.SLPVectorize = true;;
+    PMB.SLPVectorize = true;;
+    PMB.LoopVectorize = true;;
+    PMB.RerollLoops = true;
+    PMB.LoadCombine = true;
+    PMB.DisableGVNLoadPRE = true;
+    PMB.VerifyInput = true;
+    PMB.VerifyOutput = true;
+    PMB.MergeFunctions = true;
+    PMB.PrepareForLTO = false;
+    PMB.Inliner = llvm::createFunctionInliningPass();
+    PMB.populateModulePassManager(*PM2);
+    PMB.populateFunctionPassManager(*FM);
+
+    llvm::DebugFlag=true;
+    FM->doInitialization();
+
+    for (llvm::Function &F : *module.get()) 
+    {
+        std::cout << "Mod func " << FM->run(F) << "\n";
+    }
+    FM->doFinalization();
+    std::cout << "Mod module " << PM2->run(*module.get()) << "\n";
+
     // Output asm
     std::string out;
     llvm::raw_string_ostream rawout(out);
@@ -116,8 +150,9 @@ std::unique_ptr<llvm::Module> JitTree(const std::string& treeStr,
         std::cout << out;
         throw std::runtime_error("Failed to verify module");
     }
-        rawout << *predictFunc;
-        std::cout << out;
+    rawout << *predictFunc;
+    std::cout << out;
+
     return module;
 }
 
@@ -125,7 +160,6 @@ YakkaFunc BuildYakkaTree(const std::string& treeStr,
         const std::unordered_map<std::string, double*> lookup)
 {
     auto module = JitTree(treeStr, lookup);
-
     LLVMInitializeNativeTarget();
     LLVMInitializeNativeAsmPrinter();
 
@@ -142,6 +176,7 @@ YakkaFunc BuildYakkaTree(const std::string& treeStr,
         std::cout << error;
         assert(llvmExecEngine);
     }
+
 
     auto ret = reinterpret_cast<YakkaFunc>(llvmExecEngine->getPointerToNamedFunction("predict"));
     llvmExecEngine->finalizeObject();
